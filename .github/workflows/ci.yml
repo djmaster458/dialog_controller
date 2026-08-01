@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Lint and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+          cache: true
+
+      - name: Activate FVM
+        run: dart pub global activate fvm
+
+      - name: Add pub cache to PATH
+        run: echo "${HOME}/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Install Flutter version from FVM
+        run: fvm install
+
+      - name: Get dependencies
+        run: fvm flutter pub get
+
+      - name: Analyze package
+        run: fvm flutter analyze
+
+      - name: Run unit tests
+        run: fvm flutter test
