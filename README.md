@@ -1,4 +1,4 @@
-# flutter_dialog
+# dialog_flow
 
 An out-of-the-box Dialog system for apps with complex dialog flows.
 
@@ -14,10 +14,10 @@ The package uses only first-party Flutter and Dart dependencies for portability.
 
 ## Why use this package
 
-- Avoids `showDialog` and `Navigator.pop` flows
+- Avoids `showDialog` and `Navigator.pop` limitations.
 - Supports multiple dialogs with deterministic ordering.
 - Supports subtree scoping so independent areas of UI can host their own dialogs.
-- Exposes interfaces (`ChangeNotifier`, callbacks, payload data) that are easy to bridge into Riverpod, BLoC, or custom state management systems
+- Exposes interfaces (`ChangeNotifier`, callbacks, payload data) that are easy to bridge into Riverpod, BLoC, or custom state management systems.
 
 ## Installation
 
@@ -25,7 +25,7 @@ Add the dependency:
 
 ```yaml
 dependencies:
-	flutter_dialog: ^0.0.1
+	dialog_flow: ^0.0.1
 ```
 
 ## Core Concepts
@@ -68,8 +68,7 @@ MaterialApp(
 );
 ```
 
-The host-level `builder` is a fallback renderer. Any request can override it by
-providing `widgetBuilder`.
+The host-level `builder` is a default builder for the `Dialog`. Any request can override it by providing `widgetBuilder`. The `DialogHost` manages the overlay.
 
 ### 2.1 Queue a feature-owned custom widget
 
@@ -190,4 +189,108 @@ directly:
 final controller = DialogController(
 	orderStrategy: (a, b) => a.priority.compareTo(b.priority),
 );
+```
+
+## Custom overlay
+
+`DialogHost` is the default overlay implementation, but you can build your own
+overlay widget if you want different transitions, hit testing, layering, or
+placement behavior.
+
+The package responsibilities stay the same:
+
+- `DialogController` decides which request is active.
+- `DialogScope` provides the controller and optional `scopeId`.
+- Your custom overlay decides how to render and dismiss the active request.
+
+Minimal pattern:
+
+```dart
+class CustomDialogOverlay extends StatelessWidget {
+	const CustomDialogOverlay({
+		super.key,
+		required this.child,
+		required this.builder,
+		this.controller,
+		this.scopeId,
+	});
+
+	final Widget child;
+	final DialogWidgetBuilder builder;
+	final DialogController? controller;
+	final String? scopeId;
+
+	@override
+	Widget build(BuildContext context) {
+		final DialogController resolvedController =
+			controller ?? DialogScope.controllerOf(context);
+		final String? resolvedScopeId =
+			scopeId ?? DialogScope.scopeIdOf(context);
+
+		return AnimatedBuilder(
+			animation: resolvedController,
+			builder: (context, _) {
+				final DialogRequest? request =
+					resolvedController.current(scopeId: resolvedScopeId);
+
+				return Stack(
+					children: [
+						child,
+						if (request != null)
+							Positioned.fill(
+								child: ColoredBox(
+									color: const Color(0x66000000),
+									child: Center(
+										child: builder(
+											context,
+											request,
+											([outcome]) => resolvedController.dismissWithOutcome(
+												request.id,
+												outcome,
+											),
+										),
+									),
+								),
+							),
+					],
+				);
+			},
+		);
+	}
+}
+```
+
+Preserve these behaviors when building your own overlay:
+
+- read the active request with `controller.current(scopeId: ...)`
+- dismiss through `dismissWithOutcome(...)` so typed outcomes still resolve
+- respect `scopeId` if your app uses multiple dialog regions
+- support `request.widgetBuilder` semantics if you want feature-owned dialog widgets to keep working
+
+## Example app
+
+The repository includes a full example application under `example/` showing:
+
+- global dialogs
+- scoped dialogs
+- custom widget dialogs with outcomes
+- Riverpod-provided `DialogController` usage
+- Flutter BLoC integration via listener-driven requests
+- interactive priority control dialogs
+
+Run it with:
+
+```bash
+cd example
+fvm flutter run
+```
+
+## Publishing notes
+
+Before publishing to pub.dev, run:
+
+```bash
+fvm flutter analyze
+fvm flutter test
+fvm flutter pub publish --dry-run
 ```

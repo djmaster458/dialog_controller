@@ -1,7 +1,16 @@
-name: flutter_dialog
-description: "Improved Flutter Dialog Management"
+name: dialog_flow
+description: "A Flutter package for managing complex Dialog user flows"
 version: 0.0.1
-repository: https://github.com/djmaster458/flutter_dialog
+homepage: https://github.com/djmaster458/dialog_flow
+repository: https://github.com/djmaster458/dialog_flow
+issue_tracker: https://github.com/djmaster458/dialog_flow/issues
+documentation: https://github.com/djmaster458/dialog_flow#readme
+topics:
+  - flutter
+  - dialogs
+  - overlays
+  - state-management
+  - navigation
 
 environment:
   sdk: ^3.12.2

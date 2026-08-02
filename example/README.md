@@ -1,17 +1,17 @@
-# example
+# dialog_flow example
 
-A new Flutter project.
+This example application demonstrates how to use `dialog_flow` for:
 
-## Getting Started
+- app-wide dialog orchestration
+- scoped dialog regions
+- custom dialog widgets with typed outcomes
+- custom priority ordering flows
+- Riverpod integration using a provided `DialogController`
+- Flutter BLoC integration using `BlocListener`
 
-This project is a starting point for a Flutter application.
+Run the example from the repository root:
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+cd example
+fvm flutter run
+```

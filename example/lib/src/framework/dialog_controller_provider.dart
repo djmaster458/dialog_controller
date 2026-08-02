@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flutter_dialog/flutter_dialog.dart';
+import 'package:dialog_flow/dialog_flow.dart';
 
 final Provider<DialogController> dialogControllerProvider =
     Provider<DialogController>((Ref ref) {

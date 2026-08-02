@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_dialog/flutter_dialog.dart';
+import 'package:dialog_flow/dialog_flow.dart';
 
 void main() {
   test('confirmed outcome reports type helpers correctly', () {

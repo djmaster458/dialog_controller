@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_dialog/flutter_dialog.dart';
+import 'package:dialog_flow/dialog_flow.dart';
 
 void main() {
   testWidgets('updateShouldNotify only notifies dependents on scope changes', (
