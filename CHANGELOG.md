@@ -1,3 +1,7 @@
+## 0.1.1
+
+* Remove Broken API Documentation Links
+
 ## 0.1.0
 
 * Initial public release of `dialog_controller`.

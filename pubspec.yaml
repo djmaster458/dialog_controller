@@ -1,10 +1,10 @@
 name: dialog_controller
 description: "A Flutter package for managing complex Dialog user flows"
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/djmaster458/dialog_controller
 repository: https://github.com/djmaster458/dialog_controller
 issue_tracker: https://github.com/djmaster458/dialog_controller/issues
-documentation: https://djmaster458.github.io/dialog_controller/
+
 topics:
   - flutter
   - dialogs
