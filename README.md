@@ -12,6 +12,19 @@ This package separates dialog coordination from dialog rendering:
 
 The package uses only first-party Flutter and Dart dependencies for portability.
 
+## Table of Contents
+
+- [Why use this package](#why-use-this-package)
+- [Installation](#installation)
+- [Core Concepts](#core-concepts)
+	- [1. Queue requests with priority](#1-queue-requests-with-priority)
+	- [2. Render dialogs through a host](#2-render-dialogs-through-a-host)
+	- [2.1 Queue a feature-owned custom widget](#21-queue-a-feature-owned-custom-widget)
+	- [2.2 Await dialog outcomes](#22-await-dialog-outcomes)
+	- [3. Scope dialogs to a region](#3-scope-dialogs-to-a-region)
+- [Custom ordering strategy](#custom-ordering-strategy)
+- [Custom overlay](#custom-overlay)
+
 ## Why use this package
 
 - Avoids `showDialog` and `Navigator.pop` limitations.
@@ -277,20 +290,3 @@ The repository includes a full example application under `example/` showing:
 - Riverpod-provided `DialogController` usage
 - Flutter BLoC integration via listener-driven requests
 - interactive priority control dialogs
-
-Run it with:
-
-```bash
-cd example
-fvm flutter run
-```
-
-## Publishing notes
-
-Before publishing to pub.dev, run:
-
-```bash
-fvm flutter analyze
-fvm flutter test
-fvm flutter pub publish --dry-run
-```
