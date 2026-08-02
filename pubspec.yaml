@@ -1,7 +1,7 @@
 name: flutter_dialog
 description: "Improved Flutter Dialog Management"
 version: 0.0.1
-homepage:
+repository: https://github.com/djmaster458/flutter_dialog
 
 environment:
   sdk: ^3.12.2
