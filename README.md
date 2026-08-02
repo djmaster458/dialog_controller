@@ -38,7 +38,7 @@ Add the dependency:
 
 ```yaml
 dependencies:
-	dialog_flow: ^0.0.1
+	dialog_flow: ^0.1.0
 ```
 
 ## Core Concepts
