@@ -1,6 +1,6 @@
 ## 0.1.0
 
-* Initial public release of `dialog_flow`.
+* Initial public release of `dialog_controller`.
 * Added `DialogController` for dialog queueing, ordering, dismissal, and typed outcomes.
 * Added `DialogHost` and `DialogScope` for app-wide and scoped dialog rendering.
 * Added custom dialog widget support through `DialogRequest.widgetBuilder`.

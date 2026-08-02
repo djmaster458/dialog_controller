@@ -1,6 +1,6 @@
-# Contributing to dialog_flow
+# Contributing to dialog_controller
 
-Thanks for contributing to dialog_flow.
+Thanks for contributing to dialog_controller.
 
 ## Before You Start
 
