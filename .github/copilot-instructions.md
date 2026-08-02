@@ -31,5 +31,6 @@ Since this is a Flutter library, it must follow semantic versioning to ensure co
   - Avoid using magic numbers or hard-coded values; instead, use constants or enums where appropriate.
   - Ensure that the code is modular and reusable, promoting separation of concerns and maintainability.
   - Use dependency injection where appropriate to enhance testability and flexibility of the codebase.
-- No dependency on third-party libraries is allowed unless it is absolutely necessary and approved by the maintainers.
+- No dependency on third-party libraries is allowed in the package unless it is absolutely necessary and approved by the maintainers. However, the example application may use third-party libraries to demonstrate the library's usage and integration with other packages.
   - Typical Dart and Flutter libraries are allowed, but any external dependencies must be justified and reviewed.
+- When making changes to the example, be sure to lint and test the example application to ensure it works as expected
