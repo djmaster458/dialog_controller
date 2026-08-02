@@ -1,4 +1,4 @@
-## 0.0.1
+## 0.1.0
 
 * Initial public release of `dialog_flow`.
 * Added `DialogController` for dialog queueing, ordering, dismissal, and typed outcomes.
@@ -8,3 +8,4 @@
 * Added `orderingData` and pluggable `DialogOrderStrategy` support for domain-specific ordering.
 * Added example integrations for Riverpod and Flutter BLoC.
 * Added unit and widget test coverage for controller, scope, host, and example behavior.
+* Added a table of contents to the README for faster navigation of package documentation.

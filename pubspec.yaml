@@ -1,6 +1,6 @@
 name: dialog_flow
 description: "A Flutter package for managing complex Dialog user flows"
-version: 0.0.1
+version: 0.1.0
 homepage: https://github.com/djmaster458/dialog_flow
 repository: https://github.com/djmaster458/dialog_flow
 issue_tracker: https://github.com/djmaster458/dialog_flow/issues
