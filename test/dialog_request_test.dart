@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dialog_flow/dialog_flow.dart';
+import 'package:dialog_controller/dialog_controller.dart';
 
 void main() {
   test('copyWith updates provided values and preserves unspecified values', () {

@@ -1,4 +1,4 @@
-# dialog_flow
+# dialog_controller
 
 An out-of-the-box Dialog system for apps with complex dialog flows.
 
@@ -39,14 +39,14 @@ Add the dependency:
 
 ```yaml
 dependencies:
-	dialog_flow: ^0.1.0
+	dialog_controller: ^0.1.0
 ```
 
 ## API Documentation
 
 Generated API docs are published via GitHub Pages:
 
-- https://djmaster458.github.io/dialog_flow/
+- https://djmaster458.github.io/dialog_controller/
 
 ## Core Concepts
 

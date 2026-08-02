@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:dialog_flow/dialog_flow.dart';
+import 'package:dialog_controller/dialog_controller.dart';
 
 Widget buildDemoDialog(
   BuildContext context,

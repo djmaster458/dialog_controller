@@ -1,6 +1,6 @@
-# dialog_flow example
+# dialog_controller example
 
-This example application demonstrates how to use `dialog_flow` for:
+This example application demonstrates how to use `dialog_controller` for:
 
 - app-wide dialog orchestration
 - scoped dialog regions

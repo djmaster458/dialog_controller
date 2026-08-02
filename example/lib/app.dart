@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:dialog_flow/dialog_flow.dart';
+import 'package:dialog_controller/dialog_controller.dart';
 
 import 'src/framework/bloc_dialog_cubit.dart';
 import 'src/framework/dialog_controller_provider.dart';
