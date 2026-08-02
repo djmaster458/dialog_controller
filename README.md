@@ -22,6 +22,7 @@ The package uses only first-party Flutter and Dart dependencies for portability.
 	- [2.1 Queue a feature-owned custom widget](#21-queue-a-feature-owned-custom-widget)
 	- [2.2 Await dialog outcomes](#22-await-dialog-outcomes)
 	- [3. Scope dialogs to a region](#3-scope-dialogs-to-a-region)
+- [API Documentation](#api-documentation)
 - [Custom ordering strategy](#custom-ordering-strategy)
 - [Custom overlay](#custom-overlay)
 
@@ -40,6 +41,12 @@ Add the dependency:
 dependencies:
 	dialog_flow: ^0.1.0
 ```
+
+## API Documentation
+
+Generated API docs are published via GitHub Pages:
+
+- https://djmaster458.github.io/dialog_flow/
 
 ## Core Concepts
 
