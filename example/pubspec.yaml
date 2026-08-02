@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_dialog:
+  dialog_flow:
     path: ..
   flutter_bloc: ^9.1.1
   flutter_riverpod: ^2.6.1
