@@ -4,7 +4,7 @@ version: 0.1.0
 homepage: https://github.com/djmaster458/dialog_flow
 repository: https://github.com/djmaster458/dialog_flow
 issue_tracker: https://github.com/djmaster458/dialog_flow/issues
-documentation: https://github.com/djmaster458/dialog_flow#readme
+documentation: https://djmaster458.github.io/dialog_flow/
 topics:
   - flutter
   - dialogs

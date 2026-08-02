@@ -1,0 +1,70 @@
+name: API Docs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build API docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+          cache: true
+
+      - name: Activate FVM
+        run: dart pub global activate fvm
+
+      - name: Add pub cache to PATH
+        run: echo "${HOME}/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Install Flutter version from FVM
+        run: fvm install
+
+      - name: Get dependencies
+        run: fvm flutter pub get
+
+      - name: Generate API docs
+        run: fvm dart doc . --output doc/api
+
+      - name: Add .nojekyll
+        run: touch doc/api/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: doc/api
+
+  deploy:
+    name: Deploy API docs
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -9,3 +9,5 @@
 * Added example integrations for Riverpod and Flutter BLoC.
 * Added unit and widget test coverage for controller, scope, host, and example behavior.
 * Added a table of contents to the README for faster navigation of package documentation.
+* Added automated Dart API documentation publishing to GitHub Pages.
+* Updated package metadata and README to point to hosted API docs.
