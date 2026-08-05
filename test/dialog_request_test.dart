@@ -10,8 +10,6 @@ void main() {
       payload: 'original',
       orderingData: 'order-a',
       priority: 1,
-      scopeId: 'scope-a',
-      sequence: 9,
     );
 
     final DialogRequest updated = original.copyWith(
@@ -24,8 +22,6 @@ void main() {
     expect(updated.payload, 'updated');
     expect(updated.orderingData, 'order-b');
     expect(updated.priority, 10);
-    expect(updated.scopeId, 'scope-a');
-    expect(updated.sequence, 9);
   });
 
   test('copyWith retains widgetBuilder when not replaced', () {
@@ -41,32 +37,28 @@ void main() {
     expect(copy.priority, 99);
   });
 
-  test('default ordering strategy uses priority then sequence', () {
+  test('default ordering strategy uses priority only', () {
     const DialogRequest highPriority = DialogRequest(
       id: 'high',
       priority: 5,
-      sequence: 2,
     );
     const DialogRequest lowPriority = DialogRequest(
       id: 'low',
       priority: 1,
-      sequence: 1,
     );
     const DialogRequest tieA = DialogRequest(
       id: 'tie-a',
       priority: 3,
-      sequence: 1,
     );
     const DialogRequest tieB = DialogRequest(
       id: 'tie-b',
       priority: 3,
-      sequence: 2,
     );
 
     expect(defaultDialogOrderStrategy(highPriority, lowPriority), lessThan(0));
     expect(defaultDialogOrderStrategy(lowPriority, highPriority), greaterThan(0));
-    expect(defaultDialogOrderStrategy(tieA, tieB), lessThan(0));
-    expect(defaultDialogOrderStrategy(tieB, tieA), greaterThan(0));
+    expect(defaultDialogOrderStrategy(tieA, tieB), 0);
+    expect(defaultDialogOrderStrategy(tieB, tieA), 0);
   });
 }
 

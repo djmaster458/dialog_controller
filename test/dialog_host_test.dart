@@ -34,7 +34,7 @@ void main() {
     expect(find.text('Hello dialog'), findsNothing);
   });
 
-  testWidgets('supports scope isolation across multiple hosts', (
+  testWidgets('shows active dialog across multiple hosts using same controller', (
     WidgetTester tester,
   ) async {
     final DialogController controller = DialogController();
@@ -52,123 +52,11 @@ void main() {
                 ),
               ),
               Expanded(
-                child: DialogScope(
-                  controller: controller,
-                  scopeId: 'details',
-                  child: DialogHost(
-                    scopeId: 'details',
-                    builder: _dialogBuilder,
-                    child: const ColoredBox(color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(id: 'global', payload: 'Global dialog'),
-    );
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Global dialog'), findsOneWidget);
-    expect(find.text('Scoped dialog'), findsOneWidget);
-  });
-
-  testWidgets('global host ignores scoped requests', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          child: DialogHost(
-            builder: _dialogBuilder,
-            child: const Scaffold(body: SizedBox.expand()),
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped-only',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Scoped dialog'), findsNothing);
-  });
-
-  testWidgets('scoped host ignores global requests', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          scopeId: 'details',
-          child: DialogHost(
-            scopeId: 'details',
-            builder: _dialogBuilder,
-            child: const Scaffold(body: SizedBox.expand()),
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(id: 'global-only', payload: 'Global dialog'),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Global dialog'), findsNothing);
-  });
-
-  testWidgets('scoped dismissal leaves global dialog intact', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          child: Column(
-            children: <Widget>[
-              Expanded(
                 child: DialogHost(
                   builder: _dialogBuilder,
                   child: const ColoredBox(color: Colors.white),
                 ),
               ),
-              Expanded(
-                child: DialogScope(
-                  controller: controller,
-                  scopeId: 'details',
-                  child: DialogHost(
-                    scopeId: 'details',
-                    builder: _dialogBuilder,
-                    child: const ColoredBox(color: Colors.white),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -178,23 +66,10 @@ void main() {
     controller.enqueue(
       const DialogRequest(id: 'global', payload: 'Global dialog'),
     );
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
+
     await tester.pumpAndSettle();
 
-    expect(find.text('Global dialog'), findsOneWidget);
-    expect(find.text('Scoped dialog'), findsOneWidget);
-
-    expect(controller.dismissCurrent(scopeId: 'details'), isTrue);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Scoped dialog'), findsNothing);
-    expect(find.text('Global dialog'), findsOneWidget);
+    expect(find.text('Global dialog'), findsNWidgets(2));
   });
 
   testWidgets('uses request-level widget builder when provided', (

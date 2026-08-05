@@ -6,7 +6,7 @@ This package separates dialog coordination from dialog rendering:
 
 - `DialogController` manages queueing, priority, and dismissal.
 - `DialogHost` renders the active dialog layer in the widget tree.
-- `DialogScope` isolates dialog traffic for specific subtrees.
+- `DialogScope` provides a controller to descendants.
 - `DialogRequest.widgetBuilder` lets each feature provide a custom dialog widget.
 - `enqueueForOutcome<T>()` returns a formal typed outcome model.
 
@@ -21,7 +21,6 @@ The package uses only first-party Flutter and Dart dependencies for portability.
 	- [2. Render dialogs through a host](#2-render-dialogs-through-a-host)
 	- [2.1 Queue a feature-owned custom widget](#21-queue-a-feature-owned-custom-widget)
 	- [2.2 Await dialog outcomes](#22-await-dialog-outcomes)
-	- [3. Scope dialogs to a region](#3-scope-dialogs-to-a-region)
 - [Custom ordering strategy](#custom-ordering-strategy)
 - [Custom overlay](#custom-overlay)
 
@@ -29,7 +28,7 @@ The package uses only first-party Flutter and Dart dependencies for portability.
 
 - Avoids `showDialog` and `Navigator.pop` limitations.
 - Supports multiple dialogs with deterministic ordering.
-- Supports subtree scoping so independent areas of UI can host their own dialogs.
+- Uses a simple one-overlay-per-controller model.
 - Exposes interfaces (`ChangeNotifier`, callbacks, payload data) that are easy to bridge into Riverpod, BLoC, or custom state management systems.
 
 ## Installation
@@ -55,6 +54,16 @@ controller.enqueue(
 		payload: 'Connection lost.',
 	),
 );
+
+final DialogRequestHandle handle = controller.enqueue(
+	const DialogRequest(
+		id: 'network-alert-follow-up',
+		priority: 80,
+		payload: 'Retry connection?',
+	),
+);
+
+controller.dismiss(handle);
 ```
 
 Higher `priority` values win. Requests with equal priority keep insertion order.
@@ -97,12 +106,6 @@ controller.enqueue(
 );
 ```
 
-This keeps architecture boundaries intact:
-
-- `DialogController` still handles ordering, scoping, and lifecycle.
-- Feature modules own their dialog widget composition.
-- `DialogHost` remains the single rendering layer entrypoint.
-
 ### 2.2 Await dialog outcomes
 
 ```dart
@@ -137,22 +140,6 @@ Use `dismiss()` without an argument for a neutral close. The returned type is
 
 `enqueueForResult<T>()` is still available if you only need the payload value
 without outcome metadata.
-
-### 3. Scope dialogs to a region
-
-```dart
-DialogScope(
-	controller: controller,
-	scopeId: 'details-panel',
-	child: DialogHost(
-		scopeId: 'details-panel',
-		builder: dialogBuilder,
-		child: const DetailsPanel(),
-	),
-)
-```
-
-Only requests whose `scopeId` matches `details-panel` render in that host.
 
 ## Custom ordering strategy
 
@@ -195,6 +182,9 @@ controller.enqueue(
 In this example, `security-warning` appears before `billing-warning` because
 its domain rank is lower.
 
+When a custom strategy returns `0`, the controller still preserves insertion
+order for deterministic ties.
+
 If your strategy only needs the built-in fields, you can still compare those
 directly:
 
@@ -213,7 +203,7 @@ placement behavior.
 The package responsibilities stay the same:
 
 - `DialogController` decides which request is active.
-- `DialogScope` provides the controller and optional `scopeId`.
+- `DialogScope` provides the controller.
 - Your custom overlay decides how to render and dismiss the active request.
 
 Minimal pattern:
@@ -225,26 +215,23 @@ class CustomDialogOverlay extends StatelessWidget {
 		required this.child,
 		required this.builder,
 		this.controller,
-		this.scopeId,
 	});
 
 	final Widget child;
 	final DialogWidgetBuilder builder;
 	final DialogController? controller;
-	final String? scopeId;
 
 	@override
 	Widget build(BuildContext context) {
+    // Alternative: Inject with GetX, Riverpod, or other providers
 		final DialogController resolvedController =
 			controller ?? DialogScope.controllerOf(context);
-		final String? resolvedScopeId =
-			scopeId ?? DialogScope.scopeIdOf(context);
 
 		return AnimatedBuilder(
 			animation: resolvedController,
 			builder: (context, _) {
 				final DialogRequest? request =
-					resolvedController.current(scopeId: resolvedScopeId);
+					resolvedController.current();
 
 				return Stack(
 					children: [
@@ -257,9 +244,8 @@ class CustomDialogOverlay extends StatelessWidget {
 										child: builder(
 											context,
 											request,
-											([outcome]) => resolvedController.dismissWithOutcome(
-												request.id,
-												outcome,
+											([outcome]) => resolvedController.dismissCurrentWithOutcome(
+												outcome: outcome,
 											),
 										),
 									),
@@ -273,19 +259,11 @@ class CustomDialogOverlay extends StatelessWidget {
 }
 ```
 
-Preserve these behaviors when building your own overlay:
-
-- read the active request with `controller.current(scopeId: ...)`
-- dismiss through `dismissWithOutcome(...)` so typed outcomes still resolve
-- respect `scopeId` if your app uses multiple dialog regions
-- support `request.widgetBuilder` semantics if you want feature-owned dialog widgets to keep working
-
 ## Example app
 
 The repository includes a full example application under `example/` showing:
 
 - global dialogs
-- scoped dialogs
 - custom widget dialogs with outcomes
 - Riverpod-provided `DialogController` usage
 - Flutter BLoC integration via listener-driven requests

@@ -15,7 +15,6 @@ class DialogHost extends StatelessWidget {
     required this.child,
     required this.builder,
     this.controller,
-    this.scopeId,
     this.barrierColor = const Color(0x8A000000),
     this.barrierDismissible = true,
     this.alignment = Alignment.center,
@@ -31,9 +30,6 @@ class DialogHost extends StatelessWidget {
 
   /// The controller that drives the host.
   final DialogController? controller;
-
-  /// The scope used to select requests.
-  final String? scopeId;
 
   /// The modal barrier color.
   final Color barrierColor;
@@ -53,12 +49,11 @@ class DialogHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final DialogController resolvedController = controller ?? DialogScope.controllerOf(context);
-    final String? resolvedScopeId = scopeId ?? DialogScope.scopeIdOf(context);
 
     return AnimatedBuilder(
       animation: resolvedController,
       builder: (BuildContext context, Widget? _) {
-        final DialogRequest? request = resolvedController.current(scopeId: resolvedScopeId);
+        final DialogRequest? request = resolvedController.current();
         final Widget overlay = request == null
             ? const SizedBox.shrink()
             : _DialogOverlay(
@@ -70,7 +65,9 @@ class DialogHost extends StatelessWidget {
                 padding: padding,
                 transitionDuration: transitionDuration,
                 onDismiss: ([outcome]) {
-                  resolvedController.dismissWithOutcome(request.id, outcome);
+                  resolvedController.dismissCurrentWithOutcome(
+                    outcome: outcome,
+                  );
                 },
               );
 

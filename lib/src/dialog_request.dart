@@ -21,8 +21,6 @@ class DialogRequest {
     this.payload,
     this.orderingData,
     this.priority = 0,
-    this.scopeId,
-    this.sequence = 0,
     this.widgetBuilder,
   });
 
@@ -39,19 +37,14 @@ class DialogRequest {
   final Object? orderingData;
 
   /// Higher values are shown before lower values by the default strategy.
+  /// May be used by the custom ordering strategy to determine the order of requests in the queue.
   final int priority;
-
-  /// Optional scope name used to isolate dialogs to a subtree.
-  final String? scopeId;
-
-  /// Insertion order used for stable tie-breaking.
-  final int sequence;
 
   /// Optional request-level widget builder.
   ///
   /// When provided, [DialogHost] uses this builder instead of its host-level
   /// builder, allowing callers to render fully custom dialog widgets per
-  /// request while still using the same queue and scope architecture.
+  /// request while still using the same queue architecture.
   final DialogWidgetBuilder? widgetBuilder;
 
   /// Creates a copy of this request with updated values.
@@ -60,8 +53,6 @@ class DialogRequest {
     Object? payload,
     Object? orderingData,
     int? priority,
-    String? scopeId,
-    int? sequence,
     DialogWidgetBuilder? widgetBuilder,
   }) {
     return DialogRequest(
@@ -69,8 +60,6 @@ class DialogRequest {
       payload: payload ?? this.payload,
       orderingData: orderingData ?? this.orderingData,
       priority: priority ?? this.priority,
-      scopeId: scopeId ?? this.scopeId,
-      sequence: sequence ?? this.sequence,
       widgetBuilder: widgetBuilder ?? this.widgetBuilder,
     );
   }
@@ -82,11 +71,10 @@ typedef DialogOrderStrategy = int Function(
   DialogRequest b,
 );
 
-/// Orders higher-priority dialogs first and preserves insertion order on ties.
+/// Orders higher-priority dialogs first.
+///
+/// When this comparator returns `0`, [DialogController] preserves insertion
+/// order for deterministic tie-breaking.
 int defaultDialogOrderStrategy(DialogRequest a, DialogRequest b) {
-  if (a.priority != b.priority) {
-    return b.priority.compareTo(a.priority);
-  }
-
-  return a.sequence.compareTo(b.sequence);
+  return b.priority.compareTo(a.priority);
 }
