@@ -10,10 +10,7 @@ import 'custom_feature_dialog.dart';
 import 'demo_dialog_builder.dart';
 import 'priority_control_dialog.dart';
 
-enum DemoDialogAction {
-  confirmed,
-  cancelled,
-}
+enum DemoDialogAction { confirmed, cancelled }
 
 class DemoHomePage extends ConsumerStatefulWidget {
   const DemoHomePage({super.key});
@@ -25,6 +22,9 @@ class DemoHomePage extends ConsumerStatefulWidget {
 class _DemoHomePageState extends ConsumerState<DemoHomePage> {
   late final DialogController _coreController;
   late final DialogController _blocController;
+  int _requestNonce = 0;
+
+  String _nextRequestId(String prefix) => '$prefix-${++_requestNonce}';
 
   @override
   void initState() {
@@ -57,21 +57,22 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
             DialogRequest(
               id: 'bloc-priority-control-${signal.nonce}',
               priority: signal.priority,
-              widgetBuilder: (
-                BuildContext context,
-                DialogRequest request,
-                DialogDismissCallback dismiss,
-              ) {
-                return PriorityControlDialog(
-                  onQueueHigher: () {
-                    context.read<BlocDialogCubit>().queueHighPriority();
+              widgetBuilder:
+                  (
+                    BuildContext context,
+                    DialogRequest request,
+                    DialogDismissCallback dismiss,
+                  ) {
+                    return PriorityControlDialog(
+                      onQueueHigher: () {
+                        context.read<BlocDialogCubit>().queueHighPriority();
+                      },
+                      onQueueLower: () {
+                        context.read<BlocDialogCubit>().queueLowPriority();
+                      },
+                      onClose: () => dismiss(),
+                    );
                   },
-                  onQueueLower: () {
-                    context.read<BlocDialogCubit>().queueLowPriority();
-                  },
-                  onClose: () => dismiss(),
-                );
-              },
             ),
           );
           return;
@@ -87,9 +88,7 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
-        appBar: AppBar(
-          title: const Text('Flutter Dialog Demo'),
-        ),
+        appBar: AppBar(title: const Text('Flutter Dialog Demo')),
         body: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
@@ -127,8 +126,8 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                             children: <Widget>[
                               FilledButton(
                                 onPressed: () => _coreController.enqueue(
-                                  const DialogRequest(
-                                    id: 'info',
+                                  DialogRequest(
+                                    id: _nextRequestId('info'),
                                     priority: 1,
                                     payload:
                                         'This is a low-priority dialog in the Core API section.',
@@ -138,15 +137,15 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                               ),
                               OutlinedButton(
                                 onPressed: () {
-                                  final DialogRequestHandle handle =
-                                      _coreController.enqueue(
-                                        const DialogRequest(
-                                          id: 'handle-demo',
-                                          priority: 6,
-                                          payload:
-                                              'This request was enqueued with a handle. Tap Dismiss in the snackbar to close this exact request.',
-                                        ),
-                                      );
+                                  final DialogRequestHandle
+                                  handle = _coreController.enqueue(
+                                    DialogRequest(
+                                      id: _nextRequestId('handle-demo'),
+                                      priority: 6,
+                                      payload:
+                                          'This request was enqueued with a handle. Tap Dismiss in the snackbar to close this exact request.',
+                                    ),
+                                  );
 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -164,46 +163,85 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                                 },
                                 child: const Text('Queue with handle'),
                               ),
+                              OutlinedButton(
+                                onPressed: () {
+                                  final DialogRequest request = DialogRequest(
+                                    id: _nextRequestId('replaceable'),
+                                    priority: 6,
+                                    payload:
+                                        'This dialog can be updated using its original handle.',
+                                  );
+                                  final DialogRequestHandle handle =
+                                      _coreController.enqueue(request);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                        'Replaceable dialog queued.',
+                                      ),
+                                      action: SnackBarAction(
+                                        label: 'Update',
+                                        onPressed: () {
+                                          _coreController.replace(
+                                            handle,
+                                            request.copyWith(
+                                              payload:
+                                                  'Updated dialog, same queued entry and handle.',
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Queue replaceable dialog'),
+                              ),
                               FilledButton.tonal(
                                 onPressed: () => _coreController.enqueue(
                                   DialogRequest(
-                                    id: 'alert',
+                                    id: _nextRequestId('alert'),
                                     priority: 20,
-                                    widgetBuilder: (
-                                      BuildContext context,
-                                      DialogRequest request,
-                                      DialogDismissCallback dismiss,
-                                    ) {
-                                      return PriorityControlDialog(
-                                        onQueueHigher: () {
-                                          _coreController.enqueue(
-                                            const DialogRequest(
-                                              id: 'alert-higher',
-                                              priority: 30,
-                                              payload:
-                                                  'Queued from alert: this higher-priority dialog should appear immediately next.',
-                                            ),
+                                    widgetBuilder:
+                                        (
+                                          BuildContext context,
+                                          DialogRequest request,
+                                          DialogDismissCallback dismiss,
+                                        ) {
+                                          return PriorityControlDialog(
+                                            onQueueHigher: () {
+                                              _coreController.enqueue(
+                                                DialogRequest(
+                                                  id: _nextRequestId(
+                                                    'alert-higher',
+                                                  ),
+                                                  priority: 30,
+                                                  payload:
+                                                      'Queued from alert: this higher-priority dialog should appear immediately next.',
+                                                ),
+                                              );
+                                            },
+                                            onQueueLower: () {
+                                              _coreController.enqueue(
+                                                DialogRequest(
+                                                  id: _nextRequestId(
+                                                    'alert-lower',
+                                                  ),
+                                                  priority: 0,
+                                                  payload:
+                                                      'Queued from alert: this lower-priority dialog should only show after higher-priority dialogs are done.',
+                                                ),
+                                              );
+                                            },
+                                            onClose: () => dismiss(),
                                           );
                                         },
-                                        onQueueLower: () {
-                                          _coreController.enqueue(
-                                            const DialogRequest(
-                                              id: 'alert-lower',
-                                              priority: 0,
-                                              payload:
-                                                  'Queued from alert: this lower-priority dialog should only show after higher-priority dialogs are done.',
-                                            ),
-                                          );
-                                        },
-                                        onClose: () => dismiss(),
-                                      );
-                                    },
                                   ),
                                 ),
                                 child: const Text('Queue alert'),
                               ),
                               TextButton(
-                                onPressed: () => _coreController.dismissCurrent(),
+                                onPressed: () =>
+                                    _coreController.dismissCurrent(),
                                 child: const Text('Dismiss current dialog'),
                               ),
                               FilledButton(
@@ -214,29 +252,36 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                                         DemoDialogAction
                                       >(
                                         DialogRequest(
-                                          id: 'custom-widget',
+                                          id: _nextRequestId('custom-widget'),
                                           priority: 15,
-                                          widgetBuilder: (
-                                            BuildContext context,
-                                            DialogRequest request,
-                                            DialogDismissCallback dismiss,
-                                          ) {
-                                            return CustomFeatureDialog(
-                                              title: 'Custom Widget Dialog',
-                                              message:
-                                                  'This dialog is a feature-owned widget while still using the same queue controller.',
-                                              onConfirm: () => dismiss(
-                                                const DialogOutcome<Object?>.confirmed(
-                                                  DemoDialogAction.confirmed,
-                                                ),
-                                              ),
-                                              onCancel: () => dismiss(
-                                                const DialogOutcome<Object?>.cancelled(
-                                                  DemoDialogAction.cancelled,
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                          widgetBuilder:
+                                              (
+                                                BuildContext context,
+                                                DialogRequest request,
+                                                DialogDismissCallback dismiss,
+                                              ) {
+                                                return CustomFeatureDialog(
+                                                  title: 'Custom Widget Dialog',
+                                                  message:
+                                                      'This dialog is a feature-owned widget while still using the same queue controller.',
+                                                  onConfirm: () => dismiss(
+                                                    const DialogOutcome<
+                                                      Object?
+                                                    >.confirmed(
+                                                      DemoDialogAction
+                                                          .confirmed,
+                                                    ),
+                                                  ),
+                                                  onCancel: () => dismiss(
+                                                    const DialogOutcome<
+                                                      Object?
+                                                    >.cancelled(
+                                                      DemoDialogAction
+                                                          .cancelled,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                         ),
                                       );
 
@@ -262,7 +307,9 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                                       action: SnackBarAction(
                                         label: 'Dismiss Again',
                                         onPressed: () {
-                                          _coreController.dismiss(pending.handle);
+                                          _coreController.dismiss(
+                                            pending.handle,
+                                          );
                                         },
                                       ),
                                     ),
@@ -318,13 +365,17 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                               ),
                               FilledButton(
                                 onPressed: () {
-                                  context.read<BlocDialogCubit>().queueHighPriority();
+                                  context
+                                      .read<BlocDialogCubit>()
+                                      .queueHighPriority();
                                 },
                                 child: const Text('BLoC queue high dialog'),
                               ),
                               OutlinedButton(
                                 onPressed: () {
-                                  context.read<BlocDialogCubit>().queueLowPriority();
+                                  context
+                                      .read<BlocDialogCubit>()
+                                      .queueLowPriority();
                                 },
                                 child: const Text('BLoC queue low dialog'),
                               ),
@@ -370,47 +421,58 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                                 onPressed: () {
                                   riverpodController.enqueue(
                                     DialogRequest(
-                                      id: 'riverpod-priority-control',
+                                      id: _nextRequestId(
+                                        'riverpod-priority-control',
+                                      ),
                                       priority: 18,
-                                      widgetBuilder: (
-                                        BuildContext context,
-                                        DialogRequest request,
-                                        DialogDismissCallback dismiss,
-                                      ) {
-                                        return PriorityControlDialog(
-                                          onQueueHigher: () {
-                                            riverpodController.enqueue(
-                                              const DialogRequest(
-                                                id: 'riverpod-priority-high',
-                                                priority: 35,
-                                                payload:
-                                                    'Riverpod integration: queued higher-priority follow-up dialog from inside Riverpod priority dialog.',
-                                              ),
+                                      widgetBuilder:
+                                          (
+                                            BuildContext context,
+                                            DialogRequest request,
+                                            DialogDismissCallback dismiss,
+                                          ) {
+                                            return PriorityControlDialog(
+                                              onQueueHigher: () {
+                                                riverpodController.enqueue(
+                                                  DialogRequest(
+                                                    id: _nextRequestId(
+                                                      'riverpod-priority-high',
+                                                    ),
+                                                    priority: 35,
+                                                    payload:
+                                                        'Riverpod integration: queued higher-priority follow-up dialog from inside Riverpod priority dialog.',
+                                                  ),
+                                                );
+                                              },
+                                              onQueueLower: () {
+                                                riverpodController.enqueue(
+                                                  DialogRequest(
+                                                    id: _nextRequestId(
+                                                      'riverpod-priority-low',
+                                                    ),
+                                                    priority: 1,
+                                                    payload:
+                                                        'Riverpod integration: queued lower-priority follow-up dialog from inside Riverpod priority dialog.',
+                                                  ),
+                                                );
+                                              },
+                                              onClose: () => dismiss(),
                                             );
                                           },
-                                          onQueueLower: () {
-                                            riverpodController.enqueue(
-                                              const DialogRequest(
-                                                id: 'riverpod-priority-low',
-                                                priority: 1,
-                                                payload:
-                                                    'Riverpod integration: queued lower-priority follow-up dialog from inside Riverpod priority dialog.',
-                                              ),
-                                            );
-                                          },
-                                          onClose: () => dismiss(),
-                                        );
-                                      },
                                     ),
                                   );
                                 },
-                                child: const Text('Riverpod open priority dialog'),
+                                child: const Text(
+                                  'Riverpod open priority dialog',
+                                ),
                               ),
                               FilledButton.tonal(
                                 onPressed: () {
                                   riverpodController.enqueue(
-                                    const DialogRequest(
-                                      id: 'riverpod-direct-high',
+                                    DialogRequest(
+                                      id: _nextRequestId(
+                                        'riverpod-direct-high',
+                                      ),
                                       priority: 35,
                                       payload:
                                           'Riverpod integration: queued high-priority dialog directly through DialogController provider.',
@@ -422,8 +484,8 @@ class _DemoHomePageState extends ConsumerState<DemoHomePage> {
                               OutlinedButton(
                                 onPressed: () {
                                   riverpodController.enqueue(
-                                    const DialogRequest(
-                                      id: 'riverpod-direct-low',
+                                    DialogRequest(
+                                      id: _nextRequestId('riverpod-direct-low'),
                                       priority: 1,
                                       payload:
                                           'Riverpod integration: queued low-priority dialog directly through DialogController provider.',
