@@ -1,3 +1,11 @@
+## Unreleased
+
+* **Breaking:** Require unique queued dialog IDs. All enqueue methods reject duplicates with `ArgumentError`. IDs may be reused after removal.
+* **Breaking:** Remove `replaceAll()` in favor of `replace(handle, request)` for updating one queued entry while preserving its handle, pending outcome, and tie order. ID collisions leave the queue unchanged.
+* **Breaking:** Remove `orderingData`, `DialogOrderStrategy`, `defaultDialogOrderStrategy`, and the controller's `orderStrategy` parameter. Dialogs now use descending numeric priority only, with insertion order for ties.
+* Bind dialog dismissal callbacks and transition keys to queued-entry handles so stale UI events cannot dismiss a different dialog, including when a removed ID is reused.
+* Add `DialogController.currentHandle()` to identify the active queued entry.
+
 ## 0.1.1
 
 * Remove Broken API Documentation Links

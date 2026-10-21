@@ -18,10 +18,10 @@ The package uses only first-party Flutter and Dart dependencies for portability.
 - [Installation](#installation)
 - [Core Concepts](#core-concepts)
 	- [1. Queue requests with priority](#1-queue-requests-with-priority)
+	- [1.1 Replace a specific request](#11-replace-a-specific-request)
 	- [2. Render dialogs through a host](#2-render-dialogs-through-a-host)
 	- [2.1 Queue a feature-owned custom widget](#21-queue-a-feature-owned-custom-widget)
 	- [2.2 Await dialog outcomes](#22-await-dialog-outcomes)
-- [Custom ordering strategy](#custom-ordering-strategy)
 - [Custom overlay](#custom-overlay)
 
 ## Why use this package
@@ -67,6 +67,46 @@ controller.dismiss(handle);
 ```
 
 Higher `priority` values win. Requests with equal priority keep insertion order.
+
+**Each queued dialog must have a unique `DialogRequest.id` within its controller.**
+All enqueue methods throw `ArgumentError` if the ID is already queued, including
+when the same request object is enqueued twice. Requests are never silently
+replaced or deduplicated. Replacing a specific request also rejects an ID used
+by another entry without changing the queue or pending outcomes.
+
+An ID can be reused after removal, and separate controllers can use the same ID.
+Use distinct IDs when queueing multiple instances of the same dialog, such as
+`'network-alert-$sequence'`. Priority is the only ordering input; higher numbers
+appear first, including when priorities are negative. Equal priorities retain
+insertion order. There is no custom ordering strategy or ordering metadata.
+
+Retain the `DialogRequestHandle` returned by `enqueue()` (or the `handle` on
+`enqueueForOutcomeWithHandle<T>()`'s return value) for targeted dismissal on the
+**same controller**. Handles identify a particular enqueue operation, so a stale
+callback cannot dismiss a new dialog that reuses a removed ID. Dismissing a stale
+handle returns `false`. Dialog widgets can simply use the host's `dismiss`
+callback, which captures the correct handle automatically.
+
+### 1.1 Replace a specific request
+
+```dart
+final request = DialogRequest(id: 'sync-status', payload: 'Syncing...');
+final handle = controller.enqueue(request);
+
+final bool replaced = controller.replace(
+	handle,
+	request.copyWith(payload: 'Sync complete.', priority: 10),
+);
+```
+
+`replace(handle, request)` updates only the targeted entry. It preserves the
+handle, any pending outcome future, and the original insertion order for priority
+ties. Changing priority immediately reorders the queue. The replacement may keep
+its ID or use a new unique ID; a renamed entry releases its previous ID.
+
+The method returns `false` for a stale handle and throws `ArgumentError` if the
+new ID belongs to another queued entry. Other requests remain unchanged. Use the
+controller that created the handle. Bulk queue replacement is not supported.
 
 ### 2. Render dialogs through a host
 
@@ -141,59 +181,6 @@ Use `dismiss()` without an argument for a neutral close. The returned type is
 `enqueueForResult<T>()` is still available if you only need the payload value
 without outcome metadata.
 
-## Custom ordering strategy
-
-If you need behavior other than priority-first ordering, provide `orderStrategy`.
-Use `orderingData` to attach domain-specific comparison metadata without
-overloading `payload`:
-
-```dart
-class TicketDialogOrder {
-	const TicketDialogOrder(this.rank);
-
-	final int rank;
-}
-
-final controller = DialogController(
-	orderStrategy: (a, b) {
-		final TicketDialogOrder left = a.orderingData! as TicketDialogOrder;
-		final TicketDialogOrder right = b.orderingData! as TicketDialogOrder;
-		return left.rank.compareTo(right.rank);
-	},
-);
-
-controller.enqueue(
-	DialogRequest(
-		id: 'billing-warning',
-		orderingData: const TicketDialogOrder(20),
-		payload: 'Billing warning',
-	),
-);
-
-controller.enqueue(
-	DialogRequest(
-		id: 'security-warning',
-		orderingData: const TicketDialogOrder(5),
-		payload: 'Security warning',
-	),
-);
-```
-
-In this example, `security-warning` appears before `billing-warning` because
-its domain rank is lower.
-
-When a custom strategy returns `0`, the controller still preserves insertion
-order for deterministic ties.
-
-If your strategy only needs the built-in fields, you can still compare those
-directly:
-
-```dart
-final controller = DialogController(
-	orderStrategy: (a, b) => a.priority.compareTo(b.priority),
-);
-```
-
 ## Custom overlay
 
 `DialogHost` is the default overlay implementation, but you can build your own
@@ -232,11 +219,13 @@ class CustomDialogOverlay extends StatelessWidget {
 			builder: (context, _) {
 				final DialogRequest? request =
 					resolvedController.current();
+				final DialogRequestHandle? handle =
+					resolvedController.currentHandle();
 
 				return Stack(
 					children: [
 						child,
-						if (request != null)
+						if (request != null && handle != null)
 							Positioned.fill(
 								child: ColoredBox(
 									color: const Color(0x66000000),
@@ -244,8 +233,9 @@ class CustomDialogOverlay extends StatelessWidget {
 										child: builder(
 											context,
 											request,
-											([outcome]) => resolvedController.dismissCurrentWithOutcome(
-												outcome: outcome,
+											([outcome]) => resolvedController.dismissWithOutcome(
+												handle,
+												outcome,
 											),
 										),
 									),

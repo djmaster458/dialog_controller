@@ -6,22 +6,15 @@ void main() {
   test('orders dialogs by priority then insertion order', () {
     final DialogController controller = DialogController();
 
-    controller.enqueue(
-      const DialogRequest(id: 'low', priority: 1),
-    );
-    controller.enqueue(
-      const DialogRequest(id: 'high-a', priority: 10),
-    );
-    controller.enqueue(
-      const DialogRequest(id: 'high-b', priority: 10),
-    );
+    controller.enqueue(const DialogRequest(id: 'low', priority: 1));
+    controller.enqueue(const DialogRequest(id: 'high-a', priority: 10));
+    controller.enqueue(const DialogRequest(id: 'high-b', priority: 10));
 
     expect(controller.current()?.id, 'high-a');
-    expect(controller.requests().map((DialogRequest request) => request.id), <String>[
-      'high-a',
-      'high-b',
-      'low',
-    ]);
+    expect(
+      controller.requests().map((DialogRequest request) => request.id),
+      <String>['high-a', 'high-b', 'low'],
+    );
   });
 
   test('hasRequests reflects enqueue and dismissal lifecycle', () {
@@ -55,6 +48,30 @@ void main() {
     expect(controller.current()?.id, 'high');
   });
 
+  test('currentHandle identifies queued entries independently of requests', () {
+    final DialogController controller = DialogController();
+    addTearDown(controller.dispose);
+    const DialogRequest request = DialogRequest(id: 'shared');
+
+    expect(controller.currentHandle(), isNull);
+    final DialogRequestHandle first = controller.enqueue(request);
+    final DialogRequestHandle second = controller.enqueue(
+      const DialogRequest(id: 'second'),
+    );
+    expect(controller.currentHandle(), same(first));
+
+    final DialogRequestHandle high = controller.enqueue(
+      const DialogRequest(id: 'high', priority: 10),
+    );
+    expect(controller.currentHandle(), same(high));
+    expect(controller.dismiss(first), isTrue);
+    expect(controller.currentHandle(), same(high));
+    expect(controller.dismiss(high), isTrue);
+    expect(controller.currentHandle(), same(second));
+    expect(controller.dismiss(second), isTrue);
+    expect(controller.currentHandle(), isNull);
+  });
+
   test('dismisses the current dialog', () {
     final DialogController controller = DialogController();
 
@@ -65,61 +82,129 @@ void main() {
     expect(controller.current()?.id, 'first');
   });
 
-  test('dismissCurrent targets the active queued dialog when ids repeat', () {
+  test(
+    'rejects duplicate IDs through every enqueue API without mutation',
+    () async {
+      final DialogController controller = DialogController();
+      addTearDown(controller.dispose);
+      const DialogRequest request = DialogRequest(id: 'shared', priority: -1);
+      final DialogOutcomeHandle<String> pending = controller
+          .enqueueForOutcomeWithHandle<String>(request);
+      controller.enqueue(const DialogRequest(id: 'high', priority: 10));
+      int notifications = 0;
+      controller.addListener(() => notifications++);
+
+      for (final DialogRequest duplicate in <DialogRequest>[
+        request,
+        request.copyWith(priority: 100),
+      ]) {
+        expect(() => controller.enqueue(duplicate), throwsArgumentError);
+        expect(
+          () => controller.enqueueForOutcome<String>(duplicate),
+          throwsArgumentError,
+        );
+        expect(
+          () => controller.enqueueForOutcomeWithHandle<String>(duplicate),
+          throwsArgumentError,
+        );
+        expect(
+          () => controller.enqueueForResult<String>(duplicate),
+          throwsArgumentError,
+        );
+      }
+
+      expect(notifications, 0);
+      expect(controller.requests(), hasLength(2));
+      expect(controller.current()?.id, 'high');
+      controller.dismissWithOutcome(
+        pending.handle,
+        const DialogOutcome<Object?>.confirmed('original'),
+      );
+      expect((await pending.outcome).value, 'original');
+    },
+  );
+
+  test('removed IDs can be reused without reviving stale handles', () {
     final DialogController controller = DialogController();
+    addTearDown(controller.dispose);
+    const DialogRequest request = DialogRequest(id: 'shared');
+    final DialogRequestHandle first = controller.enqueue(request);
+    controller.dismiss(first);
+    final DialogRequestHandle next = controller.enqueue(request);
 
-    controller.enqueue(const DialogRequest(id: 'shared', priority: 1));
-    controller.enqueue(const DialogRequest(id: 'shared', priority: 10));
-
-    expect(controller.current()?.priority, 10);
-    expect(controller.dismissCurrent(), isTrue);
-    expect(controller.current()?.priority, 1);
+    expect(next, isNot(same(first)));
+    expect(controller.dismiss(first), isFalse);
+    expect(controller.currentHandle(), same(next));
+    controller.clear();
+    expect(() => controller.enqueue(request), returnsNormally);
   });
 
-  test('supports custom ordering strategy', () {
-    int domainRankFirst(DialogRequest a, DialogRequest b) {
-      final int aRank = a.orderingData! as int;
-      final int bRank = b.orderingData! as int;
-      return aRank.compareTo(bRank);
-    }
+  test(
+    'replace rejects another entry ID without changing queue or outcomes',
+    () async {
+      final DialogController controller = DialogController();
+      addTearDown(controller.dispose);
+      final DialogOutcomeHandle<String> pending = controller
+          .enqueueForOutcomeWithHandle<String>(const DialogRequest(id: 'old'));
+      controller.enqueue(const DialogRequest(id: 'other'));
+      int notifications = 0;
+      controller.addListener(() => notifications++);
+      bool completed = false;
+      pending.outcome.then((_) => completed = true);
 
-    final DialogController controller = DialogController(
-      orderStrategy: domainRankFirst,
-    );
+      expect(
+        () => controller.replace(
+          pending.handle,
+          const DialogRequest(id: 'other', priority: 10),
+        ),
+        throwsArgumentError,
+      );
+      await Future<void>.value();
+      expect(completed, isFalse);
+      expect(notifications, 0);
+      expect(controller.currentHandle(), same(pending.handle));
 
-    controller.enqueue(
-      const DialogRequest(id: 'first', priority: 100, orderingData: 20),
-    );
-    controller.enqueue(
-      const DialogRequest(id: 'second', priority: -100, orderingData: 5),
-    );
+      expect(controller.requests().map((request) => request.id), <String>[
+        'old',
+        'other',
+      ]);
+      expect(
+        controller.replace(
+          pending.handle,
+          const DialogRequest(id: 'new', priority: 10),
+        ),
+        isTrue,
+      );
+      await Future<void>.value();
+      expect(completed, isFalse);
+      expect(notifications, 1);
+      expect(controller.requests().map((request) => request.id), <String>[
+        'new',
+        'other',
+      ]);
+      controller.dismissWithOutcome(
+        pending.handle,
+        const DialogOutcome<Object?>.confirmed('updated'),
+      );
+      expect((await pending.outcome).value, 'updated');
+    },
+  );
 
-    expect(controller.current()?.id, 'second');
-  });
-
-  test('preserves insertion order when custom strategy ties', () {
-    int alwaysTie(DialogRequest a, DialogRequest b) => 0;
-
-    final DialogController controller = DialogController(
-      orderStrategy: alwaysTie,
-    );
-
-    controller.enqueue(const DialogRequest(id: 'first'));
-    controller.enqueue(const DialogRequest(id: 'second'));
-
-    expect(
-      controller.requests().map((DialogRequest request) => request.id),
-      <String>['first', 'second'],
-    );
+  test('IDs are unique per controller, not globally', () {
+    final DialogController first = DialogController();
+    final DialogController second = DialogController();
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    const DialogRequest request = DialogRequest(id: 'shared');
+    first.enqueue(request);
+    expect(() => second.enqueue(request), returnsNormally);
   });
 
   test('completes queued dialog with typed outcome', () async {
     final DialogController controller = DialogController();
 
-    final Future<DialogOutcome<bool>> result =
-        controller.enqueueForOutcome<bool>(
-      const DialogRequest(id: 'decision'),
-    );
+    final Future<DialogOutcome<bool>> result = controller
+        .enqueueForOutcome<bool>(const DialogRequest(id: 'decision'));
 
     expect(
       controller.dismissCurrentWithOutcome(
@@ -135,10 +220,10 @@ void main() {
   test('returns handle and typed outcome when enqueued for outcome', () async {
     final DialogController controller = DialogController();
 
-    final DialogOutcomeHandle<bool> pending =
-        controller.enqueueForOutcomeWithHandle<bool>(
-      const DialogRequest(id: 'decision-with-handle'),
-    );
+    final DialogOutcomeHandle<bool> pending = controller
+        .enqueueForOutcomeWithHandle<bool>(
+          const DialogRequest(id: 'decision-with-handle'),
+        );
 
     expect(
       controller.dismissWithOutcome(
@@ -156,10 +241,8 @@ void main() {
   test('completes pending outcome with null when cleared', () async {
     final DialogController controller = DialogController();
 
-    final Future<DialogOutcome<String>> result =
-        controller.enqueueForOutcome<String>(
-      const DialogRequest(id: 'pending'),
-    );
+    final Future<DialogOutcome<String>> result = controller
+        .enqueueForOutcome<String>(const DialogRequest(id: 'pending'));
 
     controller.clear();
     final DialogOutcome<String> outcome = await result;
@@ -184,38 +267,34 @@ void main() {
     );
   });
 
-  test('dismissCurrentWithOutcome resolves current request with custom outcome',
-      () async {
-    final DialogController controller = DialogController();
+  test(
+    'dismissCurrentWithOutcome resolves current request with custom outcome',
+    () async {
+      final DialogController controller = DialogController();
 
-    final Future<DialogOutcome<int>> pendingOutcome =
-        controller.enqueueForOutcome<int>(
-      const DialogRequest(id: 'pending'),
-    );
+      final Future<DialogOutcome<int>> pendingOutcome = controller
+          .enqueueForOutcome<int>(const DialogRequest(id: 'pending'));
 
-    expect(
-      controller.dismissCurrentWithOutcome(
-        outcome: const DialogOutcome<Object?>.cancelled(7),
-      ),
-      isTrue,
-    );
+      expect(
+        controller.dismissCurrentWithOutcome(
+          outcome: const DialogOutcome<Object?>.cancelled(7),
+        ),
+        isTrue,
+      );
 
-    final DialogOutcome<int> outcome = await pendingOutcome;
-    expect(outcome.isCancelled, isTrue);
-    expect(outcome.value, 7);
-  });
+      final DialogOutcome<int> outcome = await pendingOutcome;
+      expect(outcome.isCancelled, isTrue);
+      expect(outcome.value, 7);
+    },
+  );
 
   test('clear dismisses all pending outcomes', () async {
     final DialogController controller = DialogController();
 
-    final Future<DialogOutcome<String>> firstOutcome =
-        controller.enqueueForOutcome<String>(
-      const DialogRequest(id: 'first'),
-    );
-    final Future<DialogOutcome<String>> secondOutcome =
-        controller.enqueueForOutcome<String>(
-      const DialogRequest(id: 'second'),
-    );
+    final Future<DialogOutcome<String>> firstOutcome = controller
+        .enqueueForOutcome<String>(const DialogRequest(id: 'first'));
+    final Future<DialogOutcome<String>> secondOutcome = controller
+        .enqueueForOutcome<String>(const DialogRequest(id: 'second'));
 
     controller.clear();
 
@@ -225,31 +304,92 @@ void main() {
     expect(resolvedSecond.isDismissed, isTrue);
   });
 
-  test('replaceAll dismisses pending outcomes from previous queue', () async {
+  test(
+    'replace updates one entry and preserves handle and priority tie order',
+    () {
+      final DialogController controller = DialogController();
+      addTearDown(controller.dispose);
+      final DialogRequestHandle first = controller.enqueue(
+        const DialogRequest(id: 'first', priority: 1),
+      );
+      final DialogRequestHandle second = controller.enqueue(
+        const DialogRequest(id: 'second', priority: 2),
+      );
+      int notifications = 0;
+      controller.addListener(() => notifications++);
+
+      expect(
+        controller.replace(
+          first,
+          const DialogRequest(id: 'first', priority: 2, payload: 'updated'),
+        ),
+        isTrue,
+      );
+      expect(controller.currentHandle(), same(first));
+      expect(controller.current()?.payload, 'updated');
+      expect(controller.requests().map((request) => request.id), <String>[
+        'first',
+        'second',
+      ]);
+      expect(notifications, 1);
+
+      expect(
+        controller.replace(
+          first,
+          const DialogRequest(id: 'renamed', priority: -10),
+        ),
+        isTrue,
+      );
+      expect(controller.currentHandle(), same(second));
+      expect(controller.requests().map((request) => request.id), <String>[
+        'second',
+        'renamed',
+      ]);
+      // Changing IDs releases the old ID without changing the entry handle.
+      expect(
+        () => controller.enqueue(const DialogRequest(id: 'first')),
+        returnsNormally,
+      );
+      expect(controller.dismiss(first), isTrue);
+    },
+  );
+
+  test('replace ignores stale and foreign handles without notification', () {
     final DialogController controller = DialogController();
-
-    final Future<DialogOutcome<String>> oldOutcome =
-        controller.enqueueForOutcome<String>(
-      const DialogRequest(id: 'old'),
+    final DialogController other = DialogController();
+    addTearDown(controller.dispose);
+    addTearDown(other.dispose);
+    final DialogRequestHandle foreign = other.enqueue(
+      const DialogRequest(id: 'other'),
     );
-
-    controller.replaceAll(
-      const <DialogRequest>[
-        DialogRequest(id: 'new'),
-      ],
+    final DialogRequestHandle stale = controller.enqueue(
+      const DialogRequest(id: 'reused'),
     );
+    controller.dismiss(stale);
+    final DialogRequestHandle active = controller.enqueue(
+      const DialogRequest(id: 'reused'),
+    );
+    int notifications = 0;
+    controller.addListener(() => notifications++);
 
-    final DialogOutcome<String> resolved = await oldOutcome;
-    expect(resolved.isDismissed, isTrue);
-    expect(controller.current()?.id, 'new');
+    expect(
+      controller.replace(stale, const DialogRequest(id: 'reused')),
+      isFalse,
+    );
+    expect(
+      controller.replace(foreign, const DialogRequest(id: 'new')),
+      isFalse,
+    );
+    expect(notifications, 0);
+    expect(controller.currentHandle(), same(active));
+    expect(controller.current()?.id, 'reused');
   });
 
   test('dispose resolves all pending outcomes as dismissed', () async {
     final DialogController controller = DialogController();
 
-    final Future<DialogOutcome<bool>> pending = controller.enqueueForOutcome<bool>(
-      const DialogRequest(id: 'dispose-me'),
-    );
+    final Future<DialogOutcome<bool>> pending = controller
+        .enqueueForOutcome<bool>(const DialogRequest(id: 'dispose-me'));
 
     controller.dispose();
 
