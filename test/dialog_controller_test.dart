@@ -268,6 +268,73 @@ void main() {
   });
 
   test(
+    'dismissal rejects foreign handles with matching entry tokens',
+    () async {
+      final DialogController first = DialogController();
+      final DialogController second = DialogController();
+      addTearDown(first.dispose);
+      addTearDown(second.dispose);
+      // Both controllers allocate token zero for their first entry.
+      final DialogOutcomeHandle<String> firstPending = first
+          .enqueueForOutcomeWithHandle<String>(
+            const DialogRequest(id: 'first'),
+          );
+      final DialogOutcomeHandle<String> secondPending = second
+          .enqueueForOutcomeWithHandle<String>(
+            const DialogRequest(id: 'second'),
+          );
+      int firstNotifications = 0;
+      int secondNotifications = 0;
+      first.addListener(() => firstNotifications++);
+      second.addListener(() => secondNotifications++);
+      bool firstCompleted = false;
+      bool secondCompleted = false;
+      firstPending.outcome.then((_) => firstCompleted = true);
+      secondPending.outcome.then((_) => secondCompleted = true);
+
+      expect(first.dismiss(secondPending.handle), isFalse);
+      expect(second.dismiss(firstPending.handle), isFalse);
+      expect(
+        first.dismissWithOutcome(
+          secondPending.handle,
+          const DialogOutcome<Object?>.confirmed('foreign'),
+        ),
+        isFalse,
+      );
+      expect(
+        second.dismissWithOutcome(
+          firstPending.handle,
+          const DialogOutcome<Object?>.confirmed('foreign'),
+        ),
+        isFalse,
+      );
+      await Future<void>.value();
+
+      expect(firstNotifications, 0);
+      expect(secondNotifications, 0);
+      expect(firstCompleted, isFalse);
+      expect(secondCompleted, isFalse);
+      expect(first.currentHandle(), same(firstPending.handle));
+      expect(second.currentHandle(), same(secondPending.handle));
+      expect(first.requests().single.id, 'first');
+      expect(second.requests().single.id, 'second');
+
+      expect(
+        first.dismissWithOutcome(
+          firstPending.handle,
+          const DialogOutcome<Object?>.confirmed('first result'),
+        ),
+        isTrue,
+      );
+      expect(second.dismiss(secondPending.handle), isTrue);
+      expect((await firstPending.outcome).value, 'first result');
+      expect((await secondPending.outcome).isDismissed, isTrue);
+      expect(firstNotifications, 1);
+      expect(secondNotifications, 1);
+    },
+  );
+
+  test(
     'dismissCurrentWithOutcome resolves current request with custom outcome',
     () async {
       final DialogController controller = DialogController();

@@ -1,5 +1,6 @@
 ## Unreleased
 
+* Reject foreign controller handles during dismissal even when their entry tokens match, without changing the queue or resolving outcomes.
 * **Breaking:** Require unique queued dialog IDs. All enqueue methods reject duplicates with `ArgumentError`. IDs may be reused after removal.
 * **Breaking:** Remove `replaceAll()` in favor of `replace(handle, request)` for updating one queued entry while preserving its handle, pending outcome, and tie order. ID collisions leave the queue unchanged.
 * **Breaking:** Remove `orderingData`, `DialogOrderStrategy`, `defaultDialogOrderStrategy`, and the controller's `orderStrategy` parameter. Dialogs now use descending numeric priority only, with insertion order for ties.

@@ -114,13 +114,14 @@ class DialogController extends ChangeNotifier {
   }
 
   /// Removes a request by handle and resolves its pending outcome.
-  /// Returns true if the request was found and removed, false otherwise.
+  /// Returns true if removed, or false for a stale or foreign handle.
   bool dismissWithOutcome(
     DialogRequestHandle handle, [
     DialogOutcome<Object?>? outcome,
   ]) {
     final int index = _requests.indexWhere(
-      (_QueuedDialog request) => request.token == handle._token,
+      (_QueuedDialog request) =>
+          request.token == handle._token && identical(request.handle, handle),
     );
     if (index < 0) {
       return false;
