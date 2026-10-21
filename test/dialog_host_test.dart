@@ -34,168 +34,204 @@ void main() {
     expect(find.text('Hello dialog'), findsNothing);
   });
 
-  testWidgets('supports scope isolation across multiple hosts', (
+  testWidgets('barrier targets rendered entry before the host rebuilds', (
     WidgetTester tester,
   ) async {
     final DialogController controller = DialogController();
+    addTearDown(controller.dispose);
+    final DialogOutcomeHandle<String> first = controller
+        .enqueueForOutcomeWithHandle<String>(
+          const DialogRequest(id: 'first', payload: 'First'),
+        );
 
     await tester.pumpWidget(
       MaterialApp(
-        home: DialogScope(
+        home: DialogHost(
           controller: controller,
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: DialogHost(
-                  builder: _dialogBuilder,
-                  child: const ColoredBox(color: Colors.white),
-                ),
-              ),
-              Expanded(
-                child: DialogScope(
-                  controller: controller,
-                  scopeId: 'details',
+          builder: _dialogBuilder,
+          child: const Scaffold(body: SizedBox.expand()),
+        ),
+      ),
+    );
+
+    final DialogRequestHandle next = controller.enqueue(
+      const DialogRequest(id: 'next', payload: 'Next', priority: 10),
+    );
+    // The queue changed, but the barrier still belongs to the first entry.
+    await tester.tapAt(const Offset(2, 2));
+
+    expect((await first.outcome).isDismissed, isTrue);
+    expect(controller.currentHandle(), same(next));
+    await tester.pumpAndSettle();
+    expect(find.text('Next'), findsOneWidget);
+  });
+
+  testWidgets(
+    'outgoing action targets its entry rather than the current dialog',
+    (WidgetTester tester) async {
+      final DialogController controller = DialogController();
+      addTearDown(controller.dispose);
+      final DialogOutcomeHandle<String> first = controller
+          .enqueueForOutcomeWithHandle<String>(
+            const DialogRequest(id: 'first', payload: 'First'),
+          );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DialogHost(
+            controller: controller,
+            builder: (context, request, dismiss) => TextButton(
+              onPressed: () =>
+                  dismiss(const DialogOutcome<Object?>.confirmed('accepted')),
+              child: Text(request.payload! as String),
+            ),
+            child: const Scaffold(body: SizedBox.expand()),
+          ),
+        ),
+      );
+
+      final DialogRequestHandle next = controller.enqueue(
+        const DialogRequest(id: 'next', payload: 'Next', priority: 10),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('First'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      // Invoke the outgoing widget's action while both entries are mounted.
+      final TextButton outgoing = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'First'),
+      );
+      outgoing.onPressed!();
+
+      final DialogOutcome<String> outcome = await first.outcome;
+      expect(outcome.isConfirmed, isTrue);
+      expect(outcome.value, 'accepted');
+      expect(controller.currentHandle(), same(next));
+      // Repeated callbacks from the removed entry must be harmless.
+      outgoing.onPressed!();
+      expect(controller.currentHandle(), same(next));
+      await tester.pumpAndSettle();
+      expect(find.text('First'), findsNothing);
+      expect(find.text('Next'), findsOneWidget);
+    },
+  );
+
+  testWidgets('replacement rebuilds content and preserves dismissal outcome', (
+    WidgetTester tester,
+  ) async {
+    final DialogController controller = DialogController();
+    addTearDown(controller.dispose);
+    final DialogOutcomeHandle<String> pending = controller
+        .enqueueForOutcomeWithHandle<String>(
+          const DialogRequest(id: 'status', payload: 'Loading'),
+        );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DialogHost(
+          controller: controller,
+          builder: (context, request, dismiss) => TextButton(
+            onPressed: () =>
+                dismiss(const DialogOutcome<Object?>.confirmed('done')),
+            child: Text(request.payload! as String),
+          ),
+          child: const Scaffold(body: SizedBox.expand()),
+        ),
+      ),
+    );
+    expect(find.text('Loading'), findsOneWidget);
+    expect(
+      controller.replace(
+        pending.handle,
+        const DialogRequest(id: 'status', payload: 'Ready'),
+      ),
+      isTrue,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Loading'), findsNothing);
+    expect(find.text('Ready'), findsOneWidget);
+    expect(controller.currentHandle(), same(pending.handle));
+    await tester.tap(find.text('Ready'));
+    await tester.pumpAndSettle();
+    expect((await pending.outcome).value, 'done');
+    expect(controller.hasRequests, isFalse);
+  });
+
+  testWidgets('stale callback cannot dismiss the same request enqueued again', (
+    WidgetTester tester,
+  ) async {
+    final DialogController controller = DialogController();
+    addTearDown(controller.dispose);
+    const DialogRequest request = DialogRequest(
+      id: 'shared',
+      payload: 'Shared',
+    );
+    final DialogRequestHandle first = controller.enqueue(request);
+    late DialogDismissCallback staleDismiss;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DialogHost(
+          controller: controller,
+          builder: (context, request, dismiss) {
+            staleDismiss = dismiss;
+            return const Text('Shared');
+          },
+          child: const Scaffold(body: SizedBox.expand()),
+        ),
+      ),
+    );
+    final DialogDismissCallback dismissFirst = staleDismiss;
+    controller.dismiss(first);
+    final DialogRequestHandle next = controller.enqueue(request);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Shared'), findsNWidgets(2));
+    dismissFirst(const DialogOutcome<Object?>.cancelled());
+    expect(controller.currentHandle(), same(next));
+    await tester.pumpAndSettle();
+    expect(find.text('Shared'), findsOneWidget);
+  });
+
+  testWidgets(
+    'shows active dialog across multiple hosts using same controller',
+    (WidgetTester tester) async {
+      final DialogController controller = DialogController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DialogScope(
+            controller: controller,
+            child: Column(
+              children: <Widget>[
+                Expanded(
                   child: DialogHost(
-                    scopeId: 'details',
                     builder: _dialogBuilder,
                     child: const ColoredBox(color: Colors.white),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(id: 'global', payload: 'Global dialog'),
-    );
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Global dialog'), findsOneWidget);
-    expect(find.text('Scoped dialog'), findsOneWidget);
-  });
-
-  testWidgets('global host ignores scoped requests', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          child: DialogHost(
-            builder: _dialogBuilder,
-            child: const Scaffold(body: SizedBox.expand()),
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped-only',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Scoped dialog'), findsNothing);
-  });
-
-  testWidgets('scoped host ignores global requests', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          scopeId: 'details',
-          child: DialogHost(
-            scopeId: 'details',
-            builder: _dialogBuilder,
-            child: const Scaffold(body: SizedBox.expand()),
-          ),
-        ),
-      ),
-    );
-
-    controller.enqueue(
-      const DialogRequest(id: 'global-only', payload: 'Global dialog'),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Global dialog'), findsNothing);
-  });
-
-  testWidgets('scoped dismissal leaves global dialog intact', (
-    WidgetTester tester,
-  ) async {
-    final DialogController controller = DialogController();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DialogScope(
-          controller: controller,
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: DialogHost(
-                  builder: _dialogBuilder,
-                  child: const ColoredBox(color: Colors.white),
-                ),
-              ),
-              Expanded(
-                child: DialogScope(
-                  controller: controller,
-                  scopeId: 'details',
+                Expanded(
                   child: DialogHost(
-                    scopeId: 'details',
                     builder: _dialogBuilder,
                     child: const ColoredBox(color: Colors.white),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    controller.enqueue(
-      const DialogRequest(id: 'global', payload: 'Global dialog'),
-    );
-    controller.enqueue(
-      const DialogRequest(
-        id: 'scoped',
-        scopeId: 'details',
-        payload: 'Scoped dialog',
-      ),
-    );
-    await tester.pumpAndSettle();
+      controller.enqueue(
+        const DialogRequest(id: 'global', payload: 'Global dialog'),
+      );
 
-    expect(find.text('Global dialog'), findsOneWidget);
-    expect(find.text('Scoped dialog'), findsOneWidget);
+      await tester.pumpAndSettle();
 
-    expect(controller.dismissCurrent(scopeId: 'details'), isTrue);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Scoped dialog'), findsNothing);
-    expect(find.text('Global dialog'), findsOneWidget);
-  });
+      expect(find.text('Global dialog'), findsNWidgets(2));
+    },
+  );
 
   testWidgets('uses request-level widget builder when provided', (
     WidgetTester tester,
@@ -218,21 +254,25 @@ void main() {
       DialogRequest(
         id: 'custom',
         payload: 'ignored by custom builder',
-        widgetBuilder: (
-          BuildContext context,
-          DialogRequest request,
-          DialogDismissCallback dismiss,
-        ) {
-          return Material(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Text('Custom widget dialog'),
-                TextButton(onPressed: dismiss, child: const Text('Close custom')),
-              ],
-            ),
-          );
-        },
+        widgetBuilder:
+            (
+              BuildContext context,
+              DialogRequest request,
+              DialogDismissCallback dismiss,
+            ) {
+              return Material(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Text('Custom widget dialog'),
+                    TextButton(
+                      onPressed: dismiss,
+                      child: const Text('Close custom'),
+                    ),
+                  ],
+                ),
+              );
+            },
       ),
     );
 
@@ -267,19 +307,21 @@ void main() {
     final Future<String?> result = controller.enqueueForResult<String>(
       DialogRequest(
         id: 'result-dialog',
-        widgetBuilder: (
-          BuildContext context,
-          DialogRequest request,
-          DialogDismissCallback dismiss,
-        ) {
-          return Material(
-            child: TextButton(
-              onPressed: () =>
-                  dismiss(const DialogOutcome<Object?>.confirmed('accepted')),
-              child: const Text('Accept'),
-            ),
-          );
-        },
+        widgetBuilder:
+            (
+              BuildContext context,
+              DialogRequest request,
+              DialogDismissCallback dismiss,
+            ) {
+              return Material(
+                child: TextButton(
+                  onPressed: () => dismiss(
+                    const DialogOutcome<Object?>.confirmed('accepted'),
+                  ),
+                  child: const Text('Accept'),
+                ),
+              );
+            },
       ),
     );
 

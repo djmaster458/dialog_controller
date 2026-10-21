@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dialog_controller/dialog_controller.dart';
 
 void main() {
-  testWidgets('updateShouldNotify only notifies dependents on scope changes', (
+  testWidgets('updateShouldNotify does not notify for identical controller', (
     WidgetTester tester,
   ) async {
     final DialogController controller = DialogController();
@@ -13,7 +13,6 @@ void main() {
     await tester.pumpWidget(
       _scopeTree(
         controller: controller,
-        scopeId: 'details',
         onDependencyChange: () => dependencyChanges++,
       ),
     );
@@ -23,7 +22,6 @@ void main() {
     await tester.pumpWidget(
       _scopeTree(
         controller: controller,
-        scopeId: 'details',
         onDependencyChange: () => dependencyChanges++,
       ),
     );
@@ -31,18 +29,8 @@ void main() {
     expect(
       dependencyChanges,
       1,
-      reason: 'No dependency change expected for identical controller/scope.',
+      reason: 'No dependency change expected for identical controller.',
     );
-
-    await tester.pumpWidget(
-      _scopeTree(
-        controller: controller,
-        scopeId: 'inbox',
-        onDependencyChange: () => dependencyChanges++,
-      ),
-    );
-
-    expect(dependencyChanges, 2);
 
     controller.dispose();
   });
@@ -57,7 +45,6 @@ void main() {
     await tester.pumpWidget(
       _scopeTree(
         controller: firstController,
-        scopeId: 'details',
         onDependencyChange: () => dependencyChanges++,
       ),
     );
@@ -67,7 +54,6 @@ void main() {
     await tester.pumpWidget(
       _scopeTree(
         controller: secondController,
-        scopeId: 'details',
         onDependencyChange: () => dependencyChanges++,
       ),
     );
@@ -81,14 +67,12 @@ void main() {
 
 Widget _scopeTree({
   required DialogController controller,
-  required String scopeId,
   required VoidCallback onDependencyChange,
 }) {
   return Directionality(
     textDirection: TextDirection.ltr,
     child: DialogScope(
       controller: controller,
-      scopeId: scopeId,
       child: _ScopeDependentProbe(onDependencyChange: onDependencyChange),
     ),
   );
