@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.0
 
 * Reject foreign controller handles during dismissal even when their entry tokens match, without changing the queue or resolving outcomes.
 * **Breaking:** Require unique queued dialog IDs. All enqueue methods reject duplicates with `ArgumentError`. IDs may be reused after removal.
