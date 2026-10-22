@@ -48,19 +48,19 @@ dependencies:
 final controller = DialogController();
 
 controller.enqueue(
-	const DialogRequest(
-		id: 'network-alert',
-		priority: 100,
-		payload: 'Connection lost.',
-	),
+  const DialogRequest(
+    id: 'network-alert',
+    priority: 100,
+    payload: 'Connection lost.',
+  ),
 );
 
 final DialogRequestHandle handle = controller.enqueue(
-	const DialogRequest(
-		id: 'network-alert-follow-up',
-		priority: 80,
-		payload: 'Retry connection?',
-	),
+  const DialogRequest(
+    id: 'network-alert-follow-up',
+    priority: 80,
+    payload: 'Retry connection?',
+  ),
 );
 
 controller.dismiss(handle);
@@ -94,8 +94,8 @@ final request = DialogRequest(id: 'sync-status', payload: 'Syncing...');
 final handle = controller.enqueue(request);
 
 final bool replaced = controller.replace(
-	handle,
-	request.copyWith(payload: 'Sync complete.', priority: 10),
+  handle,
+  request.copyWith(payload: 'Sync complete.', priority: 10),
 );
 ```
 
@@ -112,21 +112,21 @@ controller that created the handle. Bulk queue replacement is not supported.
 
 ```dart
 MaterialApp(
-	home: DialogScope(
-		controller: controller,
-		child: DialogHost(
-			builder: (context, request, dismiss) {
-				return AlertDialog(
-					title: const Text('Dialog'),
-					content: Text('${request.payload}'),
-					actions: [
-						TextButton(onPressed: dismiss, child: const Text('Close')),
-					],
-				);
-			},
-			child: const HomeScreen(),
-		),
-	),
+  home: DialogScope(
+    controller: controller,
+    child: DialogHost(
+      builder: (context, request, dismiss) {
+        return AlertDialog(
+          title: const Text('Dialog'),
+          content: Text('${request.payload}'),
+          actions: [
+            TextButton(onPressed: dismiss, child: const Text('Close')),
+          ],
+        );
+      },
+      child: const HomeScreen(),
+    ),
+  ),
 );
 ```
 
@@ -136,13 +136,13 @@ The host-level `builder` is a default builder for the `Dialog`. Any request can 
 
 ```dart
 controller.enqueue(
-	DialogRequest(
-		id: 'billing-upgrade',
-		priority: 50,
-		widgetBuilder: (context, request, dismiss) {
-			return UpgradeDialog(onDismiss: dismiss);
-		},
-	),
+  DialogRequest(
+    id: 'billing-upgrade',
+    priority: 50,
+    widgetBuilder: (context, request, dismiss) {
+      return UpgradeDialog(onDismiss: dismiss);
+    },
+  ),
 );
 ```
 
@@ -150,28 +150,28 @@ controller.enqueue(
 
 ```dart
 final DialogOutcome<bool> outcome = await controller.enqueueForOutcome<bool>(
-	DialogRequest(
-		id: 'delete-confirmation',
-		widgetBuilder: (context, request, dismiss) {
-			return AlertDialog(
-				title: const Text('Delete item?'),
-				actions: [
-					TextButton(
-						onPressed: () => dismiss(const DialogOutcome<Object?>.cancelled(false)),
-						child: const Text('Cancel'),
-					),
-					FilledButton(
-						onPressed: () => dismiss(const DialogOutcome<Object?>.confirmed(true)),
-						child: const Text('Delete'),
-					),
-				],
-			);
-		},
-	),
+  DialogRequest(
+    id: 'delete-confirmation',
+    widgetBuilder: (context, request, dismiss) {
+      return AlertDialog(
+        title: const Text('Delete item?'),
+        actions: [
+          TextButton(
+            onPressed: () => dismiss(const DialogOutcome<Object?>.cancelled(false)),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => dismiss(const DialogOutcome<Object?>.confirmed(true)),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  ),
 );
 
 if (outcome.isConfirmed && outcome.value == true) {
-	// Proceed with deletion.
+  // Proceed with deletion.
 }
 ```
 
@@ -197,55 +197,53 @@ Minimal pattern:
 
 ```dart
 class CustomDialogOverlay extends StatelessWidget {
-	const CustomDialogOverlay({
-		super.key,
-		required this.child,
-		required this.builder,
-		this.controller,
-	});
+  const CustomDialogOverlay({
+    super.key,
+    required this.child,
+    required this.builder,
+    this.controller,
+  });
 
-	final Widget child;
-	final DialogWidgetBuilder builder;
-	final DialogController? controller;
+  final Widget child;
+  final DialogWidgetBuilder builder;
+  final DialogController? controller;
 
-	@override
-	Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     // Alternative: Inject with GetX, Riverpod, or other providers
-		final DialogController resolvedController =
-			controller ?? DialogScope.controllerOf(context);
+    final DialogController resolvedController =
+        controller ?? DialogScope.controllerOf(context);
 
-		return AnimatedBuilder(
-			animation: resolvedController,
-			builder: (context, _) {
-				final DialogRequest? request =
-					resolvedController.current();
-				final DialogRequestHandle? handle =
-					resolvedController.currentHandle();
+    return AnimatedBuilder(
+      animation: resolvedController,
+      builder: (context, _) {
+        final DialogRequest? request = resolvedController.current();
+        final DialogRequestHandle? handle = resolvedController.currentHandle();
 
-				return Stack(
-					children: [
-						child,
-						if (request != null && handle != null)
-							Positioned.fill(
-								child: ColoredBox(
-									color: const Color(0x66000000),
-									child: Center(
-										child: builder(
-											context,
-											request,
-											([outcome]) => resolvedController.dismissWithOutcome(
-												handle,
-												outcome,
-											),
-										),
-									),
-								),
-							),
-					],
-				);
-			},
-		);
-	}
+        return Stack(
+          children: [
+            child,
+            if (request != null && handle != null)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: const Color(0x66000000),
+                  child: Center(
+                    child: builder(
+                      context,
+                      request,
+                      ([outcome]) => resolvedController.dismissWithOutcome(
+                        handle,
+                        outcome,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 }
 ```
 
