@@ -10,7 +10,7 @@ This package separates dialog coordination from dialog rendering:
 - `DialogRequest.widgetBuilder` lets each feature provide a custom dialog widget.
 - `enqueueForOutcome<T>()` returns a formal typed outcome model.
 
-The package uses only first-party Flutter and Dart dependencies for portability.
+The package uses Flutter and the `material_ui` package for its dialog surface.
 
 ## Table of Contents
 
@@ -37,7 +37,7 @@ Add the dependency:
 
 ```yaml
 dependencies:
-	dialog_controller: ^0.1.1
+	dialog_controller: ^2.0.0
 ```
 
 ## Core Concepts
