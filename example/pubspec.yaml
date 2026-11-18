@@ -19,7 +19,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.13.8
+  flutter: ">=3.50.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -36,7 +37,7 @@ dependencies:
   flutter_bloc: ^9.1.1
   flutter_riverpod: ^2.6.1
 
-  material_ui: any
+  material_ui: ^1.11.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

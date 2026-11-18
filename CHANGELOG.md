@@ -1,3 +1,8 @@
+## 2.0.0
+
+* Require Dart `>=3.13.8` and Flutter `>=3.50.0`.
+* Constrain `material_ui` to compatible releases.
+
 ## 1.0.0
 
 * Reject foreign controller handles during dismissal even when their entry tokens match, without changing the queue or resolving outcomes.
